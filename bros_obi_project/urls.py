@@ -1,22 +1,12 @@
-"""
-URL configuration for bros_obi_project project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from staff.views import landing_login  # or from core.views if you put it there
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    path('', landing_login, name='landing_login'),
+    path('admin/', admin.site.urls),
+    path('products/', include('products.urls')),
+    path('staff/', include('staff.urls')),
+    path('sales/', include('sales.urls')),
+    path('notifications/', include('notifications.urls')),
 ]

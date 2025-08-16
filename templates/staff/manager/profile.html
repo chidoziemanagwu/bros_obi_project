@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Manager Profile | Bros Obi Project{% endblock %}
+
+{% block content %}
+<div class="mx-auto mt-6">
+
+  <!-- Header -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
+    <div class="flex items-center gap-3">
+      <span class="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-blue-100 ring-1 ring-blue-200/50">
+        <i data-feather="user" class="w-5 h-5 text-blue-700"></i>
+      </span>
+      <div>
+        <h2 class="text-2xl font-bold text-slate-800 leading-tight">Manager Profile</h2>
+        <p class="text-slate-500 text-sm">Account details and role information</p>
+      </div>
+    </div>
+    <a href="{% url 'manager_dashboard' %}"
+       class="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg ring-1 ring-slate-200 text-slate-700 hover:bg-slate-50 transition">
+      <i data-feather="arrow-left" class="w-4 h-4"></i>
+      <span>Back to dashboard</span>
+    </a>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="flex flex-wrap items-center gap-2 mb-4">
+    <a href="{% url 'manager_profile_edit' %}"
+       class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm transition shadow-sm">
+      <i data-feather="edit-2" class="w-4 h-4"></i>
+      <span>Edit details</span>
+    </a>
+    <a href="{% url 'manager_password_change' %}"
+       class="inline-flex items-center gap-2 bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-2 rounded-lg text-sm transition ring-1 ring-amber-200/60">
+      <i data-feather="lock" class="w-4 h-4"></i>
+      <span>Change password</span>
+    </a>
+    <a href="{% url 'logout' %}"
+       class="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition shadow-sm">
+      <i data-feather="log-out" class="w-4 h-4"></i>
+      <span>Logout</span>
+    </a>
+  </div>
+
+  <!-- Profile card -->
+  <div class="rounded-2xl bg-white/80 p-5 shadow-sm ring-1 ring-slate-100">
+    <dl class="divide-y divide-slate-100">
+      <div class="py-3 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+        <dt class="text-sm text-slate-500 flex items-center gap-2">
+          <i data-feather="at-sign" class="w-4 h-4"></i>
+          <span>Username</span>
+        </dt>
+        <dd class="sm:col-span-2 text-sm font-medium text-slate-900 truncate">
+          {{ request.user.username }}
+        </dd>
+      </div>
+
+      <div class="py-3 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+        <dt class="text-sm text-slate-500 flex items-center gap-2">
+          <i data-feather="mail" class="w-4 h-4"></i>
+          <span>Email</span>
+        </dt>
+        <dd class="sm:col-span-2 text-sm font-medium text-slate-900">
+          {{ request.user.email|default:"—" }}
+        </dd>
+      </div>
+
+      <div class="py-3 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+        <dt class="text-sm text-slate-500 flex items-center gap-2">
+          <i data-feather="shield" class="w-4 h-4"></i>
+          <span>Role</span>
+        </dt>
+        <dd class="sm:col-span-2">
+          <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200/60">
+            <i data-feather="briefcase" class="w-3.5 h-3.5"></i>
+            {{ profile.role|capfirst }}
+          </span>
+        </dd>
+      </div>
+
+      <div class="py-3 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+        <dt class="text-sm text-slate-500 flex items-center gap-2">
+          <i data-feather="calendar" class="w-4 h-4"></i>
+          <span>Joined</span>
+        </dt>
+        <dd class="sm:col-span-2 text-sm font-medium text-slate-900">
+          {{ request.user.date_joined|date:"Y-m-d H:i" }}
+        </dd>
+      </div>
+
+      <div class="py-3 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+        <dt class="text-sm text-slate-500 flex items-center gap-2">
+          <i data-feather="clock" class="w-4 h-4"></i>
+          <span>Last login</span>
+        </dt>
+        <dd class="sm:col-span-2 text-sm font-medium text-slate-900">
+          {{ request.user.last_login|date:"Y-m-d H:i"|default:"—" }}
+        </dd>
+      </div>
+    </dl>
+
+    <div class="mt-5 flex items-center gap-2">
+      <a href="{% url 'logout' %}"
+         class="inline-flex items-center gap-2 text-sm text-red-600 hover:text-red-700">
+        <i data-feather="log-out" class="w-4 h-4"></i>
+        <span>Logout</span>
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

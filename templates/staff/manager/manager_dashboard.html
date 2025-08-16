@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Manager Dashboard | Bros Obi Project{% endblock %}
+
+{% block content %}
+<div class="mx-auto mt-6">
+
+  <!-- Header -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
+    <div class="flex items-center gap-3">
+      <span class="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-blue-100 ring-1 ring-blue-200/50">
+        <i data-feather="settings" class="w-5 h-5 text-blue-700"></i>
+      </span>
+      <div>
+        <h2 class="text-2xl font-bold text-slate-800 leading-tight">Manager Dashboard</h2>
+        <p class="text-slate-500 text-sm">Welcome, {{ request.user.username }}! Manage your business below.</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="/notifications/"
+         class="inline-flex items-center gap-2 bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-2 rounded-lg transition shadow-sm ring-1 ring-amber-200/60 font-semibold">
+        <i data-feather="bell" class="w-4 h-4"></i>
+        <span>Notifications</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Feature Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+    <a href="{% url 'products_list' %}"
+       class="group rounded-xl bg-white/80 p-5 text-center shadow-sm ring-1 ring-slate-100 hover:bg-blue-50 transition transform hover:-translate-y-0.5">
+      <i data-feather="package" class="block mx-auto w-8 h-8 text-blue-600 mb-2"></i>
+      <div class="font-semibold text-slate-800">Manage Products</div>
+      <div class="text-xs text-slate-500 mt-1">Add, edit, or remove products</div>
+    </a>
+
+    <a href="{% url 'staff_list' %}"
+       class="group rounded-xl bg-white/80 p-5 text-center shadow-sm ring-1 ring-slate-100 hover:bg-emerald-50 transition transform hover:-translate-y-0.5">
+      <i data-feather="users" class="block mx-auto w-8 h-8 text-emerald-600 mb-2"></i>
+      <div class="font-semibold text-slate-800">Manage Staff</div>
+      <div class="text-xs text-slate-500 mt-1">Add, suspend, or delete staff</div>
+    </a>
+
+    <a href="{% url 'sales_history' %}"
+       class="group rounded-xl bg-white/80 p-5 text-center shadow-sm ring-1 ring-slate-100 hover:bg-purple-50 transition transform hover:-translate-y-0.5">
+      <i data-feather="bar-chart-2" class="block mx-auto w-8 h-8 text-purple-600 mb-2"></i>
+      <div class="font-semibold text-slate-800">Sales History</div>
+      <div class="text-xs text-slate-500 mt-1">View and export sales</div>
+    </a>
+
+    <a href="/staff/manager/profile/"
+       class="group rounded-xl bg-white/80 p-5 text-center shadow-sm ring-1 ring-slate-100 hover:bg-slate-50 transition transform hover:-translate-y-0.5">
+      <i data-feather="settings" class="block mx-auto w-8 h-8 text-slate-600 mb-2"></i>
+      <div class="font-semibold text-slate-800">Profile & Settings</div>
+      <div class="text-xs text-slate-500 mt-1">Update your info</div>
+    </a>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="rounded-2xl bg-white/80 p-5 shadow-sm ring-1 ring-slate-100">
+    <h3 class="text-lg font-semibold text-blue-700 mb-4">Quick Actions</h3>
+    <div class="flex flex-wrap gap-3">
+      <a href="/staff/products/add/"
+         class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition shadow-sm">
+        <i data-feather="plus-circle" class="w-4 h-4"></i>
+        <span>Add Product</span>
+      </a>
+      <a href="/staff/manage/"
+         class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition shadow-sm">
+        <i data-feather="user-plus" class="w-4 h-4"></i>
+        <span>Add Staff</span>
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

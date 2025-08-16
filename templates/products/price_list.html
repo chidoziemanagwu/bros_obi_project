@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Price List | Bros Obi{% endblock %}
+{% load humanize %}
+
+{% block content %}
+<div class="mx-auto mt-6">
+  <div class="rounded-2xl bg-white/80 p-6 shadow-sm ring-1 ring-slate-100">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 print:hidden">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100 ring-1 ring-blue-200/50">
+          <i data-feather="tag" class="w-5 h-5 text-blue-700"></i>
+        </span>
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800 leading-tight">Price List</h2>
+          <p class="text-slate-500 text-sm">Active product prices</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="?export=pdf"
+           class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition shadow-sm">
+          <i data-feather="download" class="w-4 h-4"></i>
+          <span>Export PDF</span>
+        </a>
+        <button onclick="window.print()"
+                class="inline-flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg transition shadow-sm">
+          <i data-feather="printer" class="w-4 h-4"></i>
+          <span>Print</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Toolbar: search + counts -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3 print:hidden">
+      <div class="relative sm:w-80">
+        <i data-feather="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input id="tableSearch" type="text" placeholder="Search products..."
+               class="w-full pl-9 pr-9 py-2 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition bg-white/90" />
+        <button id="clearSearch" type="button" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          <i data-feather="x-circle" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="text-xs text-slate-500">
+        <span id="visibleCount">0</span> of <span id="totalCount">0</span> shown • Generated on {{ now|date:"Y-m-d H:i" }}
+      </div>
+    </div>
+
+    <!-- Table (print target) -->
+    <div id="printArea" class="overflow-x-auto rounded-xl ring-1 ring-slate-100 shadow-sm bg-white">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50">
+          <tr class="text-left text-slate-600">
+            <th class="p-3 font-medium">Product</th>
+            <th class="p-3 font-medium">Price (₦)</th>
+          </tr>
+        </thead>
+        <tbody id="priceTbody" class="divide-y divide-slate-100">
+          {% for p in products %}
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3 text-slate-800">{{ p.name }}</td>
+              <td class="p-3 font-semibold text-slate-900">₦{{ p.price|floatformat:2|intcomma }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="2" class="p-8 text-center">
+                <div class="flex flex-col items-center gap-2">
+                  <span class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-slate-100 ring-1 ring-slate-200/60">
+                    <i data-feather="inbox" class="w-6 h-6 text-slate-400"></i>
+                  </span>
+                  <p class="text-slate-700 font-medium">No active products</p>
+                  <p class="text-slate-500 text-sm">Add products to view the price list.</p>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="text-xs text-slate-400 mt-3 print:hidden">Prices are subject to change without prior notice.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    feather.replace();
+
+    // Instant table search
+    const search = document.getElementById('tableSearch');
+    const clearBtn = document.getElementById('clearSearch');
+    const tbody = document.getElementById('priceTbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const totalCountEl = document.getElementById('totalCount');
+    const visibleCountEl = document.getElementById('visibleCount');
+
+    // Count only data rows (skip empty state)
+    const dataRows = rows.filter(r => r.querySelectorAll('td').length === 2);
+    totalCountEl.textContent = dataRows.length;
+    visibleCountEl.textContent = dataRows.length;
+
+    function filterRows(q) {
+      const term = q.trim().toLowerCase();
+      let visible = 0;
+      dataRows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const match = text.includes(term);
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+      visibleCountEl.textContent = visible;
+      clearBtn.classList.toggle('hidden', term.length === 0);
+    }
+
+    let tId;
+    const debounce = (fn, delay=150) => (...args) => {
+      clearTimeout(tId);
+      tId = setTimeout(() => fn(...args), delay);
+    };
+
+    search.addEventListener('input', debounce(e => filterRows(e.target.value)));
+    clearBtn.addEventListener('click', () => {
+      search.value = '';
+      filterRows('');
+      search.focus();
+    });
+  });
+</script>
+
+<style>
+  /* Print only the table area with larger, readable text */
+  @media print {
+    @page { margin: 12mm; }
+
+    /* Hide everything by default */
+    body * {
+      visibility: hidden !important;
+    }
+
+    /* Show only the print target */
+    #printArea, #printArea * {
+      visibility: visible !important;
+    }
+
+    /* Position the table for clean printing */
+    #printArea {
+      position: absolute;
+      inset: 0 auto auto 0;
+      box-shadow: none !important;
+      border: none !important;
+      width: 100%;
+    }
+
+    /* Larger, clearer typography and spacing */
+    #printArea table { font-size: 15px; line-height: 1.4; }
+    #printArea th, #printArea td { padding: 10px 12px !important; }
+
+    /* Optional: ensure borders are visible on print */
+    #printArea table { border-collapse: collapse; }
+    #printArea thead tr { border-bottom: 2px solid #000; }
+    #printArea tbody tr { border-bottom: 1px solid #000; }
+
+    /* Improve contrast */
+    #printArea th { color: #000 !important; font-weight: 700 !important; }
+    #printArea td { color: #000 !important; }
+  }
+</style>
+{% endblock %}

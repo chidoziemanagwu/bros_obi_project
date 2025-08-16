@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Create Sale | Bros Obi{% endblock %}
+
+{% block content %}
+<div class="mx-auto mt-6">
+  {% for message in messages %}
+    <div class="mb-3 px-4 py-2 rounded text-white {% if message.tags == 'error' %}bg-red-500{% elif message.tags == 'success' %}bg-emerald-600{% else %}bg-slate-700{% endif %}">
+      {{ message }}
+    </div>
+  {% endfor %}
+
+  <div class="rounded-2xl bg-white/80 p-6 shadow-sm ring-1 ring-slate-100">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-5">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100 ring-1 ring-blue-200/50">
+          <i data-feather="shopping-cart" class="w-5 h-5 text-blue-700"></i>
+        </span>
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800 leading-tight">Create Sale</h2>
+          <p class="text-slate-500 text-sm">Record a new transaction</p>
+        </div>
+      </div>
+      <a href="{% url 'products_list' %}" class="inline-flex items-center gap-2 text-sm text-blue-700 hover:text-blue-800 hover:underline transition">
+        <i data-feather="package" class="w-4 h-4"></i>
+        <span>View Products</span>
+      </a>
+    </div>
+
+    <!-- Form -->
+    <form method="post" class="space-y-5" id="saleForm">
+      {% csrf_token %}
+
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Product</label>
+        {{ form.product }}
+        <p class="mt-1 text-xs text-slate-500">Choose a product to auto-fill the unit price.</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
+          {{ form.quantity }}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Unit Price</label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">₦</span>
+            <input id="unitPrice" type="text" class="w-full pl-7 pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-800" readonly>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Total</label>
+        <div class="relative">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 font-semibold text-slate-500">₦</span>
+          <input id="totalPrice" type="text" class="w-full pl-7 pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50 font-semibold text-slate-900" readonly>
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <button id="submitBtn" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition shadow-sm">
+          <i data-feather="check-circle" class="w-4 h-4"></i>
+          <span>Record Sale</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    feather.replace();
+
+    // Add Tailwind classes to Django-rendered fields if widgets aren't styled
+    const productSelect = document.querySelector('select[name="product"]');
+    const qtyInput = document.querySelector('input[name="quantity"]');
+    if (productSelect) {
+      productSelect.classList.add('w-full','px-3','py-2','rounded-lg','border','border-slate-200','bg-white','text-slate-800','focus:border-blue-500','focus:ring-2','focus:ring-blue-100','transition');
+    }
+    if (qtyInput) {
+      qtyInput.classList.add('w-full','px-3','py-2','rounded-lg','border','border-slate-200','bg-white','text-slate-800','focus:border-blue-500','focus:ring-2','focus:ring-blue-100','transition');
+      qtyInput.setAttribute('min','1');
+      qtyInput.setAttribute('step','1');
+      qtyInput.setAttribute('inputmode','numeric');
+    }
+
+    const unitPriceEl = document.getElementById('unitPrice');
+    const totalPriceEl = document.getElementById('totalPrice');
+    const priceMap = JSON.parse(document.getElementById('priceMap').textContent);
+
+    function toMoney(n) {
+      return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function updatePrices() {
+      const pid = productSelect ? productSelect.value : null;
+      const unit = pid ? (priceMap[pid] || 0) : 0;
+      const qty = parseInt(qtyInput?.value || 0, 10) || 0;
+      if (unitPriceEl) unitPriceEl.value = toMoney(unit);
+      if (totalPriceEl) totalPriceEl.value = toMoney(unit * qty);
+    }
+
+    productSelect?.addEventListener('change', () => {
+      if (!qtyInput.value) qtyInput.value = 1;
+      updatePrices();
+    });
+    qtyInput?.addEventListener('input', updatePrices);
+
+    // Prevent double submits and give instant feedback
+    const form = document.getElementById('saleForm');
+    const submitBtn = document.getElementById('submitBtn');
+    form?.addEventListener('submit', () => {
+      submitBtn.disabled = true;
+      submitBtn.classList.add('opacity-70','cursor-not-allowed');
+    });
+
+    updatePrices();
+  });
+</script>
+
+<!-- Keep prices numeric (no commas) in JSON for math accuracy -->
+<script type="application/json" id="priceMap">
+  {
+    {% for p in products %}
+      "{{ p.id }}": {{ p.price|floatformat:2 }}{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  }
+</script>
+{% endblock %}

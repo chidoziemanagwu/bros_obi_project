@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Manage Staff | Bros Obi Project{% endblock %}
+
+{% block content %}
+<div class="mx-auto mt-6">
+
+  <!-- Header -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
+    <div class="flex items-center gap-3">
+      <span class="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-indigo-100 ring-1 ring-indigo-200/60">
+        <i data-feather="users" class="w-5 h-5 text-indigo-700"></i>
+      </span>
+      <div>
+        <h2 class="text-2xl font-bold text-slate-800 leading-tight">Staff</h2>
+        <p class="text-slate-500 text-sm">Manage users and roles</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="relative hidden sm:block">
+        <i data-feather="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input id="tableSearch" type="text" placeholder="Search username, email, role..."
+               class="w-72 pl-9 pr-3 py-2 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition bg-white/90" />
+      </div>
+      <a href="{% url 'staff_create' %}"
+         class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition shadow-sm">
+        <i data-feather="user-plus" class="w-4 h-4"></i>
+        <span>Add Staff</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Mobile search -->
+  <div class="sm:hidden mb-4">
+    <div class="relative">
+      <i data-feather="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+      <input id="tableSearchMobile" type="text" placeholder="Search staff..."
+             class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition bg-white/90" />
+    </div>
+  </div>
+
+  <!-- Card -->
+  <div class="rounded-2xl bg-white/80 p-5 shadow-sm ring-1 ring-slate-100">
+    <div class="flex items-center justify-between text-sm text-slate-600 mb-3">
+      <div>
+        <span id="visibleCount">{{ staff|length }}</span> of <span id="totalCount">{{ staff|length }}</span> shown
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="overflow-x-auto rounded-xl ring-1 ring-slate-100 shadow-sm">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 sticky top-0 z-10">
+          <tr class="text-left text-slate-600">
+            <th class="p-3 font-medium">Username</th>
+            <th class="p-3 font-medium">Email</th>
+            <th class="p-3 font-medium">Role</th>
+            <th class="p-3 font-medium">Status</th>
+            <th class="p-3 font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="staffTbody" class="divide-y divide-slate-100 bg-white">
+          {% for u in staff %}
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3 font-medium text-slate-800">
+              <div class="flex items-center gap-2">
+                <i data-feather="user" class="w-4 h-4 text-indigo-500"></i>
+                {{ u.username }}
+              </div>
+            </td>
+            <td class="p-3 text-slate-700">{{ u.email|default:"—" }}</td>
+            <td class="p-3">
+              <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ring-1
+                {% if u.staffprofile.role == 'manager' %} bg-indigo-50 text-indigo-700 ring-indigo-200/60
+                {% else %} bg-blue-50 text-blue-700 ring-blue-200/60 {% endif %}">
+                <i data-feather="shield" class="w-3 h-3"></i> {{ u.staffprofile.role|capfirst }}
+              </span>
+            </td>
+            <td class="p-3">
+              <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ring-1
+                {% if u.is_active %} bg-emerald-50 text-emerald-700 ring-emerald-200/60
+                {% else %} bg-slate-100 text-slate-600 ring-slate-200/60 {% endif %}">
+                <i data-feather="{% if u.is_active %}check-circle{% else %}x-circle{% endif %}" class="w-3 h-3"></i>
+                {% if u.is_active %} Active {% else %} Inactive {% endif %}
+              </span>
+            </td>
+            <td class="p-3">
+              <div class="flex items-center gap-1.5">
+                <a href="{% url 'staff_edit' u.pk %}"
+                   class="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-blue-50 text-blue-600"
+                   title="Edit">
+                  <i data-feather="edit-2" class="w-4 h-4"></i>
+                </a>
+                <a href="{% url 'staff_toggle_active' u.pk %}"
+                   class="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-amber-50 text-amber-600"
+                   title="Toggle Active"
+                   onclick="return confirm('Toggle active status for {{ u.username }}?');">
+                  <i data-feather="refresh-ccw" class="w-4 h-4"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="p-10 text-center">
+              <div class="flex flex-col items-center gap-2">
+                <span class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 ring-1 ring-slate-200/60">
+                  <i data-feather="inbox" class="w-7 h-7 text-slate-400"></i>
+                </span>
+                <p class="text-slate-700 font-medium">No staff users found</p>
+                <p class="text-slate-500 text-sm">Use the Add Staff button to create one.</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    feather.replace();
+
+    const tbody = document.getElementById('staffTbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const visibleCountEl = document.getElementById('visibleCount');
+    const totalCountEl = document.getElementById('totalCount');
+    const inputs = [document.getElementById('tableSearch'), document.getElementById('tableSearchMobile')].filter(Boolean);
+
+    totalCountEl.textContent = rows.filter(r => r.querySelector('td')).length;
+
+    let tId;
+    const debounce = (fn, delay=150) => (...args) => { clearTimeout(tId); tId = setTimeout(() => fn(...args), delay); };
+
+    function filterRows(term) {
+      const q = (term || '').trim().toLowerCase();
+      let visible = 0;
+      rows.forEach(row => {
+        const hasCells = row.querySelectorAll('td').length;
+        if (!hasCells) return;
+        const text = row.textContent.toLowerCase();
+        const match = text.includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+      visibleCountEl.textContent = visible;
+    }
+
+    inputs.forEach(input => {
+      input.addEventListener('input', debounce(e => filterRows(e.target.value)));
+    });
+  });
+</script>
+{% endblock %}

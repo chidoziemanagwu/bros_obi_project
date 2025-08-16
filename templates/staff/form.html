@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | Bros Obi{% endblock %}
+{% block content %}
+<div class="max-w-lg mx-auto mt-6">
+  <div class="glass p-6 rounded-xl">
+    <h2 class="text-xl font-semibold text-blue-700 mb-4">{{ title }}</h2>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <div class="grid gap-4">
+        {% for field in form %}
+          <div>
+            <label class="block text-sm font-medium mb-1 text-gray-700">{{ field.label }}</label>
+
+            {% if field.field.widget.input_type == "password" %}
+              <div class="relative">
+                {{ field.as_widget|safe }}
+                <button type="button"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                        data-toggle-password="{{ field.id_for_label }}"
+                        aria-label="Toggle password visibility">
+                  <i data-feather="eye" class="w-4 h-4"></i>
+                </button>
+              </div>
+            {% else %}
+              {{ field }}
+            {% endif %}
+
+            <div class="text-xs text-red-600 mt-1">{{ field.errors }}</div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="mt-4">
+        <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">Save</button>
+        <a href="{% url 'staff_list' %}" class="ml-2 text-gray-600 hover:text-gray-800">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    feather.replace();
+
+    // Ensure password inputs have right padding so the button doesn't overlap text
+    document.querySelectorAll('input[type="password"]').forEach(inp => {
+      if (!inp.classList.contains('pr-10')) {
+        inp.classList.add('pr-10');
+      }
+    });
+
+    document.querySelectorAll('[data-toggle-password]').forEach(btn => {
+      const inputId = btn.getAttribute('data-toggle-password');
+      const input = document.getElementById(inputId);
+      const icon = btn.querySelector('i');
+
+      btn.addEventListener('click', () => {
+        if (!input) return;
+        const isPassword = input.getAttribute('type') === 'password';
+        input.setAttribute('type', isPassword ? 'text' : 'password');
+
+        // swap icon
+        const newIcon = isPassword ? 'eye-off' : 'eye';
+        icon.setAttribute('data-feather', newIcon);
+        feather.replace(); // refresh the icon
+      });
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Bros Obi Project{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Flowbite CDN -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.js"></script>
+  <!-- Feather Icons -->
+  <script src="https://unpkg.com/feather-icons"></script>
+
+  <style>
+    :root{
+      --glass-bg: rgba(255,255,255,0.25);
+      --glass-ring: rgba(15, 23, 42, 0.06);
+    }
+    .glass {
+      background: var(--glass-bg);
+      box-shadow: 0 10px 30px rgba(2, 6, 23, 0.06);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--glass-ring);
+    }
+    /* Nicer scrollbars */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb { background: rgba(2, 6, 23, 0.18); border-radius: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gradient-to-br from-blue-100 via-white to-indigo-100 min-h-screen font-sans text-slate-800">
+  {% block navbar %}
+  <!-- Top Navbar (fixed, no shadow) -->
+  <nav class="glass fixed top-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 py-3 z-30" style="height:64px;">
+    <div class="flex items-center gap-3">
+      <!-- Mobile sidebar toggle -->
+      <button id="sidebarToggle" class="sm:hidden inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-white/50 transition" aria-label="Open sidebar" aria-controls="sidebar" aria-expanded="false">
+        <i data-feather="menu" class="w-5 h-5 text-blue-700"></i>
+      </button>
+      <span class="text-xl sm:text-2xl font-bold text-blue-700 tracking-tight">Bros Obi</span>
+    </div>
+    <div class="flex items-center gap-3">
+      {% if user.is_authenticated %}
+        <span class="hidden sm:inline-flex items-center text-sm text-slate-700">
+          {{ user.username }}
+          {% if user.staffprofile.role %}
+            <span class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{{ user.staffprofile.role|title }}</span>
+          {% endif %}
+        </span>
+        <a href="{% url 'logout' %}" class="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-sm transition">
+          <i data-feather="log-out" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Logout</span>
+        </a>
+      {% else %}
+        <a href="{% url 'landing_login' %}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition">Login</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <div class="flex pt-16 min-h-screen">
+    <!-- Sidebar wrapper for mobile overlay -->
+    <div id="sidebarWrapper" class="fixed inset-0 z-20 sm:static sm:inset-auto pointer-events-none sm:pointer-events-auto">
+      <!-- Backdrop (mobile only) -->
+      <div id="sidebarBackdrop" class="hidden sm:hidden absolute inset-0 bg-slate-900/30 pointer-events-auto"></div>
+
+      <!-- Sidebar -->
+      <aside id="sidebar"
+             class="fixed top-16 left-0 h-[calc(100vh-64px)] w-72 max-w-[85%] sm:w-64 sm:max-w-none sm:static -translate-x-full sm:translate-x-0 transition-transform duration-200 ease-out
+                    flex flex-col justify-between bg-gradient-to-b from-blue-700 via-blue-700 to-indigo-700 text-white">
+        <div class="py-6 px-3 overflow-y-auto">
+          <ul class="flex flex-col gap-y-1">
+            {% if user.is_authenticated %}
+              <!-- Common links (staff + manager) -->
+              <li>
+                <a href="{% url 'products_list' %}"
+                   class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition">
+                  <i data-feather="package" class="w-5 h-5"></i>
+                  <span class="font-medium">Products</span>
+                </a>
+              </li>
+
+              {% if user.staffprofile.role == 'staff' %}
+                <li>
+                  <a href="{% url 'sale_create' %}"
+                     class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition">
+                    <i data-feather="shopping-cart" class="w-5 h-5"></i>
+                    <span class="font-medium">Create Sale</span>
+                  </a>
+                </li>
+              {% endif %}
+
+              <li>
+                <a href="{% url 'price_list' %}"
+                   class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition">
+                  <i data-feather="printer" class="w-5 h-5"></i>
+                  <span class="font-medium">Price List</span>
+                </a>
+              </li>
+
+              <!-- Sales History: role-aware -->
+              {% if user.staffprofile.role == 'manager' %}
+                <li>
+                  <a href="{% url 'sales_history' %}"
+                     class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition">
+                    <i data-feather="bar-chart-2" class="w-5 h-5"></i>
+                    <span class="font-medium">Sales History</span>
+                  </a>
+                </li>
+              {% else %}
+                <li>
+                  <a href="{% url 'staff_sales_history' %}"
+                     class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition">
+                    <i data-feather="bar-chart-2" class="w-5 h-5"></i>
+                    <span class="font-medium">My Sales</span>
+                  </a>
+                </li>
+              {% endif %}
+
+              {% if user.staffprofile.role == 'manager' %}
+                <li class="pt-2">
+                  <a href="{% url 'manager_dashboard' %}"
+                     class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition">
+                    <i data-feather="settings" class="w-5 h-5"></i>
+                    <span class="font-medium">Manager Dashboard</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="{% url 'staff_list' %}"
+                     class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition">
+                    <i data-feather="users" class="w-5 h-5"></i>
+                    <span class="font-medium">Manage Staff</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="/notifications/"
+                     class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition">
+                    <i data-feather="bell" class="w-5 h-5"></i>
+                    <span class="font-medium">Notifications</span>
+                  </a>
+                </li>
+              {% else %}
+                <li class="pt-2">
+                  <a href="{% url 'staff_dashboard' %}"
+                     class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition">
+                    <i data-feather="user" class="w-5 h-5"></i>
+                    <span class="font-medium">Staff Dashboard</span>
+                  </a>
+                </li>
+              {% endif %}
+            {% endif %}
+          </ul>
+        </div>
+
+        {% if user.is_authenticated %}
+          <div class="border-t border-white/10 py-4 px-3">
+            <span class="block text-xs text-white/80">Welcome,</span>
+            <span class="block text-sm font-semibold">
+              {{ user.username }}
+              {% if user.staffprofile.role %}
+                <span class="ml-2 text-[10px] bg-white/15 px-2 py-0.5 rounded-full">{{ user.staffprofile.role|title }}</span>
+              {% endif %}
+            </span>
+          </div>
+        {% endif %}
+      </aside>
+    </div>
+
+    <!-- Main Content (scrollable) -->
+    <main class="flex-1 ml-0  pt-6 px-4 sm:px-6 overflow-y-auto" >
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  {% endblock %}
+
+  <footer class="mt-12 text-center text-slate-400 text-sm">
+    &copy; {{ now|date:"Y" }} Bros Obi Project. All rights reserved.
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      feather.replace();
+
+      // Sidebar toggle (mobile)
+      const sidebar = document.getElementById('sidebar');
+      const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      const sidebarWrapper = document.getElementById('sidebarWrapper'); // added
+
+      function openSidebar() {
+        sidebar.classList.remove('-translate-x-full');
+        sidebarBackdrop.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        sidebarWrapper?.classList.remove('pointer-events-none'); // added
+        sidebarToggle?.setAttribute('aria-expanded', 'true');
+      }
+      function closeSidebar() {
+        sidebar.classList.add('-translate-x-full');
+        sidebarBackdrop.classList.add('hidden');
+        document.body.style.overflow = '';
+        sidebarWrapper?.classList.add('pointer-events-none'); // added
+        sidebarToggle?.setAttribute('aria-expanded', 'false');
+      }
+
+      sidebarToggle?.addEventListener('click', openSidebar);
+      sidebarBackdrop?.addEventListener('click', closeSidebar);
+      // Close on ESC
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeSidebar();
+      });
+      // Close after clicking a nav link (mobile)
+      document.querySelectorAll('#sidebar a.nav-item').forEach(a => {
+        a.addEventListener('click', () => {
+          if (window.innerWidth < 640) closeSidebar();
+        });
+      });
+
+      // Active nav highlighting
+      const path = window.location.pathname.replace(/\/+$/, '');
+      document.querySelectorAll('.nav-item').forEach(a => {
+        const href = a.getAttribute('href')?.replace(/\/+$/, '');
+        if (href && (href === path || (href !== '/' && path.startsWith(href)))) {
+          a.classList.add('bg-white/15', 'ring-1', 'ring-white/10');
+        }
+      });
+    });
+  </script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

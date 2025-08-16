@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto mt-16">
+  <div class="glass p-6">
+    <h3 class="text-lg font-semibold mb-4">Delete {{ type }}</h3>
+    <p class="mb-4">Are you sure you want to delete "{{ object }}"? This action cannot be undone.</p>
+    <form method="post">
+      {% csrf_token %}
+      <button class="bg-red-600 text-white px-4 py-2 rounded">Delete</button>
+      <a href="{% url 'products_list' %}" class="ml-2 text-gray-600">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}
