@@ -1,53 +1,9 @@
 {% extends "base.html" %}
 {% block title %}{{ title }} | Bros Obi{% endblock %}
 
-{% block extra_head %}
-<style>
-  /* Style all form controls inside the card without changing form widgets */
-  .form-card input[type="text"],
-  .form-card input[type="number"],
-  .form-card input[type="email"],
-  .form-card input[type="password"],
-  .form-card input[type="tel"],
-  .form-card input[type="date"],
-  .form-card input[type="time"],
-  .form-card input[type="datetime-local"],
-  .form-card input[type="file"],
-  .form-card select,
-  .form-card textarea {
-    width: 100%;
-    border-radius: 0.5rem;
-    border: 1px solid rgb(226 232 240);
-    background-color: rgba(255,255,255,0.9);
-    padding: 0.625rem 0.75rem;
-    color: rgb(30 41 59);
-    outline: none;
-    transition: box-shadow .15s ease, border-color .15s ease, background-color .15s ease;
-  }
-  .form-card input:focus,
-  .form-card select:focus,
-  .form-card textarea:focus {
-    border-color: rgb(59 130 246);
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
-    background-color: #fff;
-  }
-  /* Error state */
-  .field-error .control {
-    border-color: rgb(239 68 68) !important;
-    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12) !important;
-  }
-  /* File input tweaks */
-  .form-card input[type="file"] {
-    padding: 0.5rem;
-    background: #fff;
-  }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="mx-auto mt-6 sm:mt-8">
   <div class="rounded-2xl bg-white/70 p-5 sm:p-6 md:p-8 shadow-lg ring-1 ring-slate-100 form-card">
-    <!-- Header -->
     <div class="flex items-start sm:items-center justify-between gap-3 mb-6">
       <div class="min-w-0">
         <div class="flex items-center gap-3">
@@ -56,59 +12,95 @@
           </span>
           <div>
             <h2 class="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">{{ title }}</h2>
-            <p class="text-slate-500 text-sm mt-0.5">Fill in the details and click Save</p>
+            <p class="text-slate-500 text-sm mt-0.5">Adjust product details and status</p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Form -->
     <form method="post" enctype="multipart/form-data" class="space-y-6">
       {% csrf_token %}
 
-      {% if form.non_field_errors %}
-        <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {{ form.non_field_errors }}
-        </div>
-      {% endif %}
-
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
         {% for field in form %}
-          {% with has_error=field.errors %}
-          <div class="{% if has_error %}field-error{% endif %}">
+          <div class="{% if field.errors %}field-error{% endif %}">
             <label class="block text-sm font-medium mb-1.5 text-slate-700">
               {{ field.label }}
-              {% if field.field.required %}
-                <span class="text-red-500" title="Required">*</span>
-              {% endif %}
+              {% if field.field.required %}<span class="text-red-500">*</span>{% endif %}
             </label>
+            
             <div class="control">
-              {{ field }}
+              {% if field.name == 'active' or field.name == 'is_active' %}
+                <input type="checkbox" name="{{ field.name }}" id="id_{{ field.name }}" 
+                       class="hidden" {% if field.value %}checked{% endif %}>
+                
+                <button type="button" id="status-toggle-btn" 
+                        onclick="toggleProductStatus('{{ field.name }}')"
+                        class="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border transition-all duration-200 shadow-sm">
+                    <span id="status-text" class="font-semibold text-sm"></span>
+                    <span id="status-icon" class="inline-flex items-center justify-center w-6 h-6 rounded-full"></span>
+                </button>
+              {% else %}
+                {{ field }}
+              {% endif %}
             </div>
-            {% if field.help_text %}
-              <p class="mt-1 text-xs text-slate-500">{{ field.help_text|safe }}</p>
-            {% endif %}
+            
             {% if field.errors %}
-              <div class="mt-1.5 text-xs text-red-600">
-                {{ field.errors }}
-              </div>
+              <div class="mt-1.5 text-xs text-red-600">{{ field.errors }}</div>
             {% endif %}
           </div>
-          {% endwith %}
         {% endfor %}
       </div>
 
-      <div class="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-        <button type="submit" class="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg transition shadow-sm">
-          <i data-feather="save" class="w-4 h-4"></i>
-          <span>Save</span>
+      <div class="pt-2 flex gap-3">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg transition shadow-sm font-medium flex items-center gap-2">
+          <i data-feather="save" class="w-4 h-4"></i> Save Changes
         </button>
-        <a href="{% url 'products_list' %}" class="inline-flex items-center justify-center gap-2 bg-white text-slate-700 hover:text-slate-900 px-4 py-2.5 rounded-lg transition shadow-sm ring-1 ring-slate-200">
-          <i data-feather="x-circle" class="w-4 h-4"></i>
-          <span>Cancel</span>
+        <a href="{% url 'products_list' %}" class="bg-white text-slate-700 px-6 py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition">
+          Cancel
         </a>
       </div>
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateToggleUI(fieldName) {
+        const checkbox = document.getElementById('id_' + fieldName);
+        const btn = document.getElementById('status-toggle-btn');
+        const text = document.getElementById('status-text');
+        const icon = document.getElementById('status-icon');
+
+        if (checkbox.checked) {
+            // ACTIVE STATE
+            btn.className = "w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm ring-1 ring-emerald-100";
+            text.innerText = "Product is Active";
+            icon.innerHTML = '<i data-feather="check" class="w-4 h-4"></i>';
+            icon.className = "bg-emerald-200 text-emerald-700 rounded-full p-1";
+        } else {
+            // SUSPENDED STATE
+            btn.className = "w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-red-200 bg-red-50 text-red-700 shadow-sm ring-1 ring-red-100";
+            text.innerText = "Product Suspended";
+            icon.innerHTML = '<i data-feather="slash" class="w-4 h-4"></i>';
+            icon.className = "bg-red-200 text-red-700 rounded-full p-1";
+        }
+        feather.replace();
+    }
+
+    function toggleProductStatus(fieldName) {
+        const checkbox = document.getElementById('id_' + fieldName);
+        checkbox.checked = !checkbox.checked;
+        updateToggleUI(fieldName);
+    }
+
+    // Run on load to set initial state
+    document.addEventListener('DOMContentLoaded', function() {
+        const activeField = document.getElementById('id_active') || document.getElementById('id_is_active');
+        if (activeField) {
+            updateToggleUI(activeField.name);
+        }
+    });
+</script>
 {% endblock %}

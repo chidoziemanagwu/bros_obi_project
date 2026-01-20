@@ -49,12 +49,12 @@ class StaffUserForm(forms.ModelForm):
 
 
 
-class SaleCreateForm(forms.Form):
+class SaleItemForm(forms.Form):
+    # This remains similar but we'll use it to generate the dropdown in the template
     product = forms.ModelChoiceField(
         queryset=Product.objects.filter(active=True).order_by('name'),
-        widget=forms.Select(attrs={'class': 'w-full px-4 py-2 border rounded'})
+        empty_label="Select Product"
     )
-    quantity = forms.IntegerField(
-        min_value=1,
-        widget=forms.NumberInput(attrs={'class': 'w-full px-4 py-2 border rounded'})
-    )
+    quantity = forms.IntegerField(min_value=1, initial=1)
+
+

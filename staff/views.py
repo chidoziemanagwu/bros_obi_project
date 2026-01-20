@@ -26,6 +26,32 @@ from django.db import transaction
 from django.db.models import F, Sum, Count
 from django.utils import timezone
 from datetime import datetime, timedelta
+from django.utils.timezone import make_aware
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import user_passes_test
+from django.core.exceptions import PermissionDenied
+
+def manager_required(view_func):
+    def _wrapped(request, *args, **kwargs):
+        if request.user.is_authenticated and hasattr(request.user, 'staffprofile') and request.user.staffprofile.role == 'manager':
+            return view_func(request, *args, **kwargs)
+        raise PermissionDenied
+    return _wrapped
+
+
+
+@login_required
+@manager_required
+@require_POST
+def product_toggle_status(request, pk):
+    product = get_object_or_404(Product, pk=pk)
+    product.active = not product.active
+    product.save()
+    messages.success(request, f"Product '{product.name}' is now {'Active' if product.active else 'Inactive'}.")
+    return redirect('products_list')
+
+
 
 @login_required
 def staff_password_change(request):
@@ -220,6 +246,10 @@ def product_edit(request, pk):
         form = ProductForm(instance=product)
     return render(request, 'products/form.html', {'form': form, 'title': 'Edit Product'})
 
+
+
+
+
 @login_required
 @manager_required
 def product_delete(request, pk):
@@ -281,156 +311,136 @@ def staff_toggle_active(request, pk):
     user.is_active = not user.is_active
     user.save()
     return redirect('staff_list')
-
+# views.py
 @login_required
-@manager_required
 def sales_history(request):
-    qs = Sale.objects.select_related('product', 'sold_by').order_by('-created_at')
+    # 1. Role-Based Access Control
+    # Check if the user is a manager or regular staff
+    try:
+        is_manager = request.user.staffprofile.role == 'manager'
+    except AttributeError:
+        is_manager = False
+
+    # 2. Base Queryset - Restrict if not manager
+    if is_manager:
+        qs = Sale.objects.select_related('product', 'sold_by').order_by('-created_at')
+        # Only managers get to see the full staff list for the dropdown
+        all_staff = User.objects.filter(staffprofile__isnull=False).order_by('username')
+    else:
+        # STAFF: Can ONLY see sales they personally made
+        qs = Sale.objects.filter(sold_by=request.user).select_related('product').order_by('-created_at')
+        all_staff = None  # Staff don't need the staff dropdown list
+
+    # 3. Extract GET parameters
     start = request.GET.get('start')
     end = request.GET.get('end')
+    product_id = request.GET.get('product')
+    staff_id = request.GET.get('staff')  # Only relevant for managers
     q = request.GET.get('q', '').strip()
 
+    # 4. Apply Timezone-Aware Date Filters
     if start:
         try:
-            start_dt = datetime.strptime(start, '%Y-%m-%d')
+            start_dt = make_aware(datetime.strptime(start, '%Y-%m-%d'))
             qs = qs.filter(created_at__gte=start_dt)
-        except ValueError:
-            pass
+        except ValueError: pass
+            
     if end:
         try:
-            end_dt = datetime.strptime(end, '%Y-%m-%d')
+            end_dt = make_aware(datetime.strptime(end, '%Y-%m-%d'))
+            end_dt = end_dt.replace(hour=23, minute=59, second=59)
             qs = qs.filter(created_at__lte=end_dt)
-        except ValueError:
-            pass
+        except ValueError: pass
+
+    # 5. Filter by Product and Staff IDs
+    if product_id and product_id != 'all':
+        qs = qs.filter(product_id=product_id)
+    
+    # Manager-only filter: filter by staff member
+    if is_manager and staff_id and staff_id != 'all':
+        qs = qs.filter(sold_by_id=staff_id)
+
     if q:
         qs = qs.filter(product__name__icontains=q)
 
-    # Aggregates (for the stats strip)
+    # 6. Handle PDF Export (Logic remains the same, but uses the restricted 'qs')
+    if request.GET.get('export') == 'pdf':
+        buffer = io.BytesIO()
+        p = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+        left, right, top, bottom = 15*mm, width-15*mm, height-15*mm, 15*mm
+        y = top
+
+        p.setFont("Helvetica-Bold", 14)
+        p.drawString(left, y, "Bros Obi Project — Sales History Report")
+        y -= 18
+
+        # Table Headers
+        p.setFont("Helvetica-Bold", 9)
+        col_x = {"date": left, "product": left + 35*mm, "qty": left + 115*mm, "total": left + 130*mm, "staff": left + 155*mm}
+        p.drawString(col_x["date"], y, "Date")
+        p.drawString(col_x["product"], y, "Product")
+        p.drawRightString(col_x["qty"] + 10*mm, y, "Qty")
+        p.drawRightString(col_x["total"] + 15*mm, y, "Total (NGN)")
+        if is_manager: # Only show staff column in PDF if manager
+            p.drawString(col_x["staff"], y, "Staff")
+        
+        y -= 12
+        total_sum = 0
+        p.setFont("Helvetica", 9)
+
+        for s in qs:
+            if y < bottom + 20*mm:
+                p.showPage()
+                y = top - 20*mm
+            
+            p.drawString(col_x["date"], y, s.created_at.strftime("%Y-%m-%d %H:%M"))
+            p.drawString(col_x["product"], y, s.product.name[:35])
+            p.drawRightString(col_x["qty"] + 10*mm, y, str(s.quantity))
+            p.drawRightString(col_x["total"] + 15*mm, y, f"{s.total_price:,.2f}")
+            if is_manager:
+                p.drawString(col_x["staff"], y, s.sold_by.username if s.sold_by else "N/A")
+            
+            total_sum += float(s.total_price)
+            y -= 14
+
+        p.setFont("Helvetica-Bold", 10)
+        p.drawRightString(col_x["total"] + 15*mm, y-10, f"Grand Total: NGN {total_sum:,.2f}")
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+        return FileResponse(buffer, as_attachment=True, filename=f"sales_report_{timezone.now().date()}.pdf")
+
+    # 7. Calculate Stats (These will now be specific to the User or the filtered results)
     aggs = qs.aggregate(
         total_amount=Sum('total_price'),
         total_items=Sum('quantity'),
         sale_count=Count('id'),
     )
+    
     total_amount = aggs['total_amount'] or 0
     total_items = aggs['total_items'] or 0
     sale_count = aggs['sale_count'] or 0
     avg_per_sale = (total_amount / sale_count) if sale_count else 0
 
-    # PDF export (restored)
-    if request.GET.get('export') == 'pdf':
-        buffer = io.BytesIO()
-        p = canvas.Canvas(buffer, pagesize=A4)
-        width, height = A4
+    all_products = Product.objects.all().order_by('name')
 
-        left = 15 * mm
-        right = width - 15 * mm
-        top = height - 15 * mm
-        bottom = 15 * mm
-        y = top
-
-        p.setFont("Helvetica-Bold", 14)
-        p.drawString(left, y, "Bros Obi Project — Sales History")
-        p.setFont("Helvetica", 9)
-        y -= 12
-        filters_text = []
-        if start: filters_text.append(f"Start: {start}")
-        if end: filters_text.append(f"End: {end}")
-        if q: filters_text.append(f"Query: {q}")
-        subtitle = " | ".join(filters_text) if filters_text else "All records"
-        p.drawString(left, y, subtitle)
-
-        y -= 18
-        p.setStrokeColor(colors.lightgrey)
-        p.line(left, y, right, y)
-        y -= 12
-        p.setFont("Helvetica-Bold", 9)
-        col_x = {
-            "date": left,
-            "product": left + 35*mm,
-            "qty": left + 120*mm,
-            "total": left + 140*mm,
-            "user": left + 165*mm,
-        }
-        p.drawString(col_x["date"], y, "Date")
-        p.drawString(col_x["product"], y, "Product")
-        p.drawRightString(col_x["qty"] + 10*mm, y, "Qty")
-        p.drawRightString(col_x["total"] + 15*mm, y, "Total (NGN)")
-        p.drawString(col_x["user"], y, "Sold By")
-        y -= 8
-        p.setStrokeColor(colors.lightgrey)
-        p.line(left, y, right, y)
-        y -= 12
-        p.setFont("Helvetica", 9)
-
-        total_sum = 0
-        for s in qs:
-            if y < bottom + 30*mm:
-                p.showPage()
-                y = top
-                p.setFont("Helvetica-Bold", 14)
-                p.drawString(left, y, "Bros Obi Project — Sales History (cont.)")
-                p.setFont("Helvetica", 9)
-                y -= 18
-                p.setStrokeColor(colors.lightgrey)
-                p.line(left, y, right, y)
-                y -= 12
-                p.setFont("Helvetica-Bold", 9)
-                p.drawString(col_x["date"], y, "Date")
-                p.drawString(col_x["product"], y, "Product")
-                p.drawRightString(col_x["qty"] + 10*mm, y, "Qty")
-                p.drawRightString(col_x["total"] + 15*mm, y, "Total (NGN)")
-                p.drawString(col_x["user"], y, "Sold By")
-                y -= 8
-                p.setStrokeColor(colors.lightgrey)
-                p.line(left, y, right, y)
-                y -= 12
-                p.setFont("Helvetica", 9)
-
-            date_str = s.created_at.strftime("%Y-%m-%d %H:%M")
-            product_name = (s.product.name[:42] + "…") if len(s.product.name) > 43 else s.product.name
-            qty_str = str(s.quantity)
-            total_str = f"{s.total_price:,.2f}"
-            sold_by = getattr(s.sold_by, "username", "")
-
-            p.drawString(col_x["date"], y, date_str)
-            p.drawString(col_x["product"], y, product_name)
-            p.drawRightString(col_x["qty"] + 10*mm, y, qty_str)
-            p.drawRightString(col_x["total"] + 15*mm, y, total_str)
-            p.drawString(col_x["user"], y, sold_by)
-            y -= 14
-
-            total_sum += float(s.total_price)
-
-        y -= 6
-        p.setStrokeColor(colors.black)
-        p.line(col_x["total"] + 15*mm - 40*mm, y, col_x["total"] + 15*mm, y)
-        y -= 12
-        p.setFont("Helvetica-Bold", 10)
-        p.drawRightString(col_x["total"] + 15*mm, y, f"Total: NGN {total_sum:,.2f}")
-
-        p.showPage()
-        p.save()
-        buffer.seek(0)
-        filename = f"sales_history_{timezone.now().date()}.pdf"
-        return FileResponse(buffer, as_attachment=True, filename=filename)
-
-    return render(
-        request,
-        'sales/history.html',
-        {
-            'sales': qs,
-            'start': start,
-            'end': end,
-            'q': q,
-            'total_amount': total_amount,
-            'total_items': total_items,
-            'sale_count': sale_count,
-            'avg_per_sale': avg_per_sale,
-        }
-    )
-
-
-
+    context = {
+        'sales': qs,
+        'start': start,
+        'end': end,
+        'selected_product': product_id,
+        'selected_staff': staff_id,
+        'all_products': all_products,
+        'all_staff': all_staff,
+        'is_manager': is_manager, # Added to context to control HTML visibility
+        'q': q,
+        'total_amount': total_amount,
+        'total_items': total_items,
+        'sale_count': sale_count,
+        'avg_per_sale': avg_per_sale,
+    }
+    return render(request, 'sales/history.html', context)
 
 @login_required
 @manager_required
@@ -473,48 +483,54 @@ def manager_password_change(request):
 
 
 
+
 @login_required
 def sale_create(request):
-    # Allow both staff and managers to record a sale
-    from .forms import SaleCreateForm  # local import to avoid circulars if any
-    if request.method == 'POST':
-        form = SaleCreateForm(request.POST)
-        if form.is_valid():
-            product = form.cleaned_data['product']
-            qty = form.cleaned_data['quantity']
+    products = Product.objects.filter(active=True).order_by('name')
 
-            try:
-                with transaction.atomic():
-                    # Lock the product row so concurrent sales are safe
-                    p = Product.objects.select_for_update().get(pk=product.pk)
+    if request.method == 'POST':
+        # Get the lists from the dynamic form
+        product_ids = request.POST.getlist('product[]')
+        quantities = request.POST.getlist('quantity[]')
+
+        if not product_ids:
+            messages.error(request, "Please add at least one product to the sale.")
+            return redirect('sale_create')
+
+        try:
+            with transaction.atomic():
+                for p_id, qty_str in zip(product_ids, quantities):
+                    qty = int(qty_str)
+                    # Lock the row for safety
+                    p = Product.objects.select_for_update().get(pk=p_id)
+
                     if p.quantity < qty:
-                        messages.error(request, f"Insufficient stock for {p.name}. Available: {p.quantity}.")
-                        return redirect('sale_create')
+                        # Raise exception to trigger rollback of the whole sale
+                        raise ValueError(f"Insufficient stock for {p.name}. Available: {p.quantity}")
 
                     # Deduct stock
                     p.quantity = F('quantity') - qty
                     p.save(update_fields=['quantity'])
 
-                    # Create sale; total_price will be normalized in Sale.save()
+                    # Create individual sale records
                     Sale.objects.create(
                         product=p,
                         quantity=qty,
                         total_price=p.price * qty,
                         sold_by=request.user
                     )
-
-                messages.success(request, f"Sale recorded for {product.name} x{qty}. Stock updated.")
+                
+                messages.success(request, f"Successfully recorded sale of {len(product_ids)} items.")
                 return redirect('sale_create')
-            except Product.DoesNotExist:
-                messages.error(request, "Selected product does not exist.")
-            except Exception:
-                messages.error(request, "Could not complete sale. Please try again.")
-    else:
-        form = SaleCreateForm()
 
-    # Provide products for the template’s priceMap JSON
-    products = Product.objects.filter(active=True).order_by('name')
-    return render(request, 'sales/create.html', {'form': form, 'products': products})
+        except ValueError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            messages.error(request, "A database error occurred. Please try again.")
+
+    return render(request, 'sales/create.html', {'products': products})
+
+
 
 @login_required
 def price_list(request):
